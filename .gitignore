@@ -1,0 +1,6 @@
+*.ipynb
+.env
+__pycache__/
+# Virtual environment
+.venv/
+venv

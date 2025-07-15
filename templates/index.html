@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <title>IA generadora de historias</title>
+    <style>
+      /* Variables de color */
+      :root {
+        --primary: #6c5ce7;
+        --secondary: #00bfa6;
+        --bg: #f4f5fa;
+        --text: #333;
+        --card-bg: rgba(255, 255, 255, 0.8);
+        --accent: #ff6b6b;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: "Segoe UI", Tahoma, sans-serif;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: var(--text);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      .container {
+        width: 100%;
+        max-width: 900px;
+        background: var(--card-bg);
+        border-radius: 16px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(12px);
+        padding: 30px;
+        animation: fadeIn 0.8s ease-out;
+        position: relative;
+      }
+      h1 {
+        font-size: 2.5rem;
+        background: linear-gradient(90deg, var(--accent), var(--primary));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-align: center;
+        margin-bottom: 20px;
+        animation: slideIn 0.8s ease-out;
+      }
+      .mode-switch {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+      .mode-switch label {
+        position: relative;
+        padding-left: 36px;
+        font-size: 1rem;
+        cursor: pointer;
+        user-select: none;
+      }
+      .mode-switch input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .mode-switch label::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 20px;
+        height: 20px;
+        border: 2px solid var(--primary);
+        border-radius: 50%;
+        transition: all 0.3s;
+      }
+      .mode-switch input:checked + label::before {
+        background: var(--primary);
+        box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.3);
+      }
+      form {
+        display: grid;
+        gap: 20px;
+      }
+      form div {
+        display: flex;
+        flex-direction: column;
+      }
+      label {
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+      input[type="text"],
+      textarea,
+      select {
+        padding: 12px;
+        border: 2px solid var(--primary);
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: border-color 0.3s, box-shadow 0.3s;
+        background: rgba(255, 255, 255, 0.6);
+      }
+      input:focus,
+      textarea:focus,
+      select:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.3);
+        outline: none;
+      }
+      button {
+        width: fit-content;
+        padding: 12px 24px;
+        background: linear-gradient(90deg, var(--primary), var(--accent));
+        color: white;
+        font-size: 1rem;
+        font-weight: 600;
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        align-self: start;
+        transition: transform 0.3s, box-shadow 0.3s;
+      }
+      button:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+      }
+      .story {
+        margin-top: 40px;
+        padding: 24px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        line-height: 1.6;
+        animation: fadeIn 1s ease-out;
+      }
+      .image {
+        margin-top: 30px;
+        text-align: center;
+        animation: fadeIn 1.2s ease-out;
+      }
+      .image img {
+        max-width: 100%;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+      /* Loader overlay */
+      .loader-overlay {
+        display: none;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(4px);
+        align-items: center;
+        justify-content: center;
+        border-radius: 16px;
+      }
+      .spinner {
+        width: 60px;
+        height: 60px;
+        border: 6px solid var(--primary);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      /* Animations */
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateX(-50px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+    </style>
+    <script>
+      function toggleMode() {
+        const mode = document.querySelector('input[name="mode"]:checked').value;
+        document.getElementById("chat-form").style.display =
+          mode === "chat" ? "grid" : "none";
+        document.getElementById("attrs-form").style.display =
+          mode === "form" ? "grid" : "none";
+      }
+      document.addEventListener("DOMContentLoaded", () => {
+        document
+          .querySelectorAll('input[name="mode"]')
+          .forEach((r) => r.addEventListener("change", toggleMode));
+        toggleMode();
+
+        // Añadimos listener a ambos formularios para mostrar el loader
+        document.querySelectorAll("form").forEach((form) => {
+          form.addEventListener("submit", () => {
+            document.querySelector(".loader-overlay").style.display = "flex";
+          });
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      {% if error %}
+      <div style="margin-top: 20px; padding: 16px; background: #ffeaea; color: #b00020; border-radius: 8px; border: 1px solid #ffb3b3; text-align: center; font-weight: bold;">
+        ⚠️ Error: {{ error }}
+      </div>
+      {% endif %}
+      <!-- Loader -->
+      <div class="loader-overlay">
+        <div class="spinner"></div>
+      </div>
+
+      <h1>Generador de historias</h1>
+
+      <div class="mode-switch">
+        <input type="radio" id="chat-mode" name="mode" value="chat" checked />
+        <label for="chat-mode">Chat libre</label>
+        <input type="radio" id="form-mode" name="mode" value="form" />
+        <label for="form-mode">Formulario</label>
+      </div>
+
+      <form id="chat-form" method="post">
+        <input type="hidden" name="mode" value="chat" />
+        <div>
+          <label for="chat_input">Escribe tu petición de historia:</label>
+          <textarea id="chat_input" name="chat_input" rows="3"></textarea>
+        </div>
+        <button type="submit">Generar historia</button>
+      </form>
+
+      <form id="attrs-form" method="post" style="display: none">
+        <input type="hidden" name="mode" value="form" />
+        <div>
+          <label for="personajes">Personajes (nombre y rasgos):</label>
+          <input type="text" id="personajes" name="personajes" />
+        </div>
+        <div>
+          <label for="genero">Género:</label>
+          <select id="genero" name="genero">
+            <option>Fantasía</option>
+            <option>Misterio</option>
+            <option>Romance</option>
+            <option>Terror</option>
+            <option>Ciencia ficción</option>
+            <option>Comedia</option>
+            <option>Aventura</option>
+          </select>
+        </div>
+        <div>
+          <label for="escenario">Escenario (ubicación y atmósfera):</label>
+          <input type="text" id="escenario" name="escenario" />
+        </div>
+        <div>
+          <label for="tono">Tono:</label>
+          <select id="tono" name="tono">
+            <option>Humorístico</option>
+            <option>Oscuro</option>
+            <option>Caprichoso</option>
+            <option>Dramático</option>
+            <option>Satírico</option>
+          </select>
+        </div>
+        <div>
+          <label for="elementos_trama">Elementos de trama:</label>
+          <input type="text" id="elementos_trama" name="elementos_trama" />
+        </div>
+        <div>
+          <label for="longitud">Longitud:</label>
+          <select id="longitud" name="longitud">
+            <option value="corta">Corta (300-400 palabras)</option>
+            <option value="mediana">Mediana (400-600 palabras)</option>
+            <option value="larga">Larga (600-800 palabras)</option>
+          </select>
+        </div>
+        <button type="submit">Generar historia</button>
+      </form>
+
+      {% if story %}
+      <div class="story">
+        <h2>Historia Generada</h2>
+        {% if img_data %}
+        <div class="image">
+          <img
+            src="data:image/png;base64,{{ img_data }}"
+            alt="Ilustración de la historia"
+          />
+        </div>
+        {% endif %}
+        <p>{{ story }}</p>
+      </div>
+      {% endif %}
+    </div>
+  </body>
+</html>
